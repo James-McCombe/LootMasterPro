@@ -1,0 +1,8 @@
+## Interface: 110000
+## Title: LootMaster Pro
+## Notes: Updates the loot message with TSM inventory data and Values
+## Author: EPRock
+## Version: 0.1
+## Dependencies: TradeSkillMaster
+
+LootMasterPro.lua
