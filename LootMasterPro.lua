@@ -65,7 +65,7 @@ SlashCmdList["LMPDEBUGLEVEL"] = function(msg)
     end
 end
 
-
+-- Debug Print
 local function DebugPrint(level, message)
     if level >= currentLogLevel then
         local levelName = ""
