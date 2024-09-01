@@ -14,6 +14,7 @@ SlashCmdList.AllTheThingsDebugOn = function(cmd)
 	AllTheThings.Settings:SetDebugMode(true);
 end
 
+
 local frame = CreateFrame("Frame")
 
 -- Functions
@@ -39,15 +40,58 @@ local function GetDecWaitDelay()
     return decWaitDelay
 end
 
--- Define the debug flag
-local isDebugMode = false -- Set to false to disable debug messages
+local LogLevel = {
+	Trace = 0,
+    Debug = 1,
+    Info = 2,
+    Warn = 3,
+    Error = 4,
+    Fatal = 5,
+	Off = 6
+}
+
+local currentLogLevel = LogLevel.Off -- Change this to set the desired log level
+
+SLASH_LMPDEBUGLEVEL1 = "/lmpdebuglevel"
+SlashCmdList["LMPDEBUGLEVEL"] = function(msg)
+    local level = tonumber(msg)
+    if level and level >= LogLevel.Trace and level <= LogLevel.Off then
+        currentLogLevel = level
+        print("Debug level set to " .. level)
+    else
+        print("Invalid debug level. Please enter a number between 0 and 6.")
+    end
+end
+
+
+local function DebugPrint(level, message)
+    if level >= currentLogLevel then
+        local levelName = ""
+        for k, v in pairs(LogLevel) do
+            if v == level then
+                levelName = k
+                break
+            end
+        end
+        local timeInSeconds = GetTime()
+        local hours = math.floor(timeInSeconds / 3600) % 24
+        local minutes = math.floor(timeInSeconds / 60) % 60
+        local seconds = math.floor(timeInSeconds) % 60
+        local milliseconds = math.floor((timeInSeconds % 1) * 1000)
+        local timestamp = string.format("%02d:%02d:%02d.%03d", hours, minutes, seconds, milliseconds)
+        print("[" .. timestamp .. "] [" .. levelName .. "]: " .. message)
+    end
+end
+
+-- Define the debug flags
+-- local isDebugMode = true -- Set to false to disable debug messages
 
 -- Function to print debug messages
-local function DebugPrint(message)
+--[[local function DebugPrint(message)
     if isDebugMode then
         print("[DEBUG]: " .. message)
     end
-end
+end]]
 
 
 frame:RegisterEvent("CHAT_MSG_LOOT")
@@ -66,32 +110,32 @@ end
 local function fallbackCheck()
     if #pendingItemsQueue > 0 then
         local itemNumber = table.remove(pendingItemsQueue, 1)
-        DebugPrint("*** Fallback ***")
+        DebugPrint(LogLevel.Info, "*** Fallback ***")
 
 		local WowApiItemCountBag = GetItemCount(itemNumber) or 0
-		DebugPrint("WOW_API: No-ICC Items in Bags: " .. WowApiItemCountBag)
-		DebugPrint("Original Message: " .. (pendingItemData[itemNumber].itemMessage or ""))
-		DebugPrint("Item Link: " .. (pendingItemData[itemNumber].itemLink or ""))
-		DebugPrint("Item Count: " .. (pendingItemData[itemNumber].itemCount or 1))
-		DebugPrint("Num Bags: " .. (pendingItemData[itemNumber].numBags or 0))
-		DebugPrint("Num Player: " .. (pendingItemData[itemNumber].numPlayer or 0))
-		DebugPrint("Num Alts: " .. (pendingItemData[itemNumber].numAlts or 0))
-		DebugPrint("Num Auctions: " .. (pendingItemData[itemNumber].numAuctions or 0))
-		DebugPrint("Num Alt Auctions: " .. (pendingItemData[itemNumber].numAltAuctions or 0))
-		DebugPrint("Mail: " .. (pendingItemData[itemNumber].getMail or 0))
-		DebugPrint("Bank: " .. (pendingItemData[itemNumber].getBank or 0))
-		DebugPrint("Guild Bank: " .. (pendingItemData[itemNumber].getGuildBank or 0))
-		DebugPrint("War Bank: " .. (pendingItemData[itemNumber].getWarBankTotal or 0))
+		DebugPrint(LogLevel.Debug, "WOW_API: No-ICC Items in Bags: " .. WowApiItemCountBag)
+		DebugPrint(LogLevel.Debug, "Original Message: " .. (pendingItemData[itemNumber].itemMessage or ""))
+		DebugPrint(LogLevel.Debug, "Item Link: " .. (pendingItemData[itemNumber].itemLink or ""))
+		DebugPrint(LogLevel.Debug, "Item Count: " .. (pendingItemData[itemNumber].itemCount or 1))
+		DebugPrint(LogLevel.Debug, "Num Bags: " .. (pendingItemData[itemNumber].numBags or 0))
+		DebugPrint(LogLevel.Debug, "Num Player: " .. (pendingItemData[itemNumber].numPlayer or 0))
+		DebugPrint(LogLevel.Debug, "Num Alts: " .. (pendingItemData[itemNumber].numAlts or 0))
+		DebugPrint(LogLevel.Debug, "Num Auctions: " .. (pendingItemData[itemNumber].numAuctions or 0))
+		DebugPrint(LogLevel.Debug, "Num Alt Auctions: " .. (pendingItemData[itemNumber].numAltAuctions or 0))
+		DebugPrint(LogLevel.Debug, "Mail: " .. (pendingItemData[itemNumber].getMail or 0))
+		DebugPrint(LogLevel.Debug, "Bank: " .. (pendingItemData[itemNumber].getBank or 0))
+		DebugPrint(LogLevel.Debug, "Guild Bank: " .. (pendingItemData[itemNumber].getGuildBank or 0))
+		DebugPrint(LogLevel.Debug, "War Bank: " .. (pendingItemData[itemNumber].getWarBankTotal or 0))
 
 		-- Player Total: On Player, On Alts, In Warbank
 		local getPlayerTotal = (pendingItemData[itemNumber].numPlayer or 0) + (pendingItemData[itemNumber].numAlts or 0) + (pendingItemData[itemNumber].getWarBankTotal or 0)
-		DebugPrint("Player Total: " .. getPlayerTotal)
+		DebugPrint(LogLevel.Debug, "Player Total: " .. getPlayerTotal)
 		local itemDifference = WowApiItemCountBag - (pendingItemData[itemNumber].numBags or 0)
-		DebugPrint("Item Difference: " .. itemDifference)
+		DebugPrint(LogLevel.Debug, "Item Difference: " .. itemDifference)
 		if itemDifference == (pendingItemData[itemNumber].itemCount or 0) then
 			getPlayerTotal = getPlayerTotal + pendingItemData[itemNumber].itemCount
-			DebugPrint("New Player Total: " .. getPlayerTotal)
-			DebugPrint("Items in Bags: " .. WowApiItemCountBag)
+			DebugPrint(LogLevel.Debug, "New Player Total: " .. getPlayerTotal)
+			DebugPrint(LogLevel.Debug, "Items in Bags: " .. WowApiItemCountBag)
 		end
 
 		local itemString = TSM_API.ToItemString((pendingItemData[itemNumber].itemLink or ""))
@@ -129,10 +173,10 @@ end
 ChatFrame_AddMessageEventFilter("CHAT_MSG_LOOT", FilterLootMessage)
 
 frame:SetScript("OnEvent", function(self, event, ...)
-    DebugPrint("Event triggered: " .. event)
+    DebugPrint(LogLevel.Debug, "Event triggered: " .. event)
     if event == "CHAT_MSG_LOOT" and string.find((...), "You receive ") then
         local message = ...
-        DebugPrint("CHAT_MSG_LOOT message: " .. message)
+        DebugPrint(LogLevel.Info, "CHAT_MSG_LOOT message: " .. message .. " [ " .. message:match("item:(%d+)") .. " ]")
         local itemLink = message:match("|Hitem:.-|h.-|h")
         local itemCount = tonumber(message:match("x(%d+)")) or 1
         local itemString = TSM_API.ToItemString(itemLink)
@@ -159,48 +203,58 @@ frame:SetScript("OnEvent", function(self, event, ...)
             getGuildBank = getGuildBank,
             getWarBankTotal = getWarBankTotal
         }
-        DebugPrint("Added item to queue: " .. itemNumber)
-        if #pendingItemsQueue > 0 and not fallbackTimer then
+        DebugPrint(LogLevel.Debug, "Added item to queue: " .. itemNumber)
+        if #pendingItemsQueue > 0 then
+			if fallbackTimer then
+				DebugPrint(LogLevel.Debug, "Reset Fallback Timer")
+			else
+				DebugPrint(LogLevel.Debug, "Fallback timer set")
+			end
             fallbackTimer = wait(2, fallbackCheck)
-            DebugPrint("Fallback timer set")
         end
+
+        --[[if #pendingItemsQueue > 0 and not fallbackTimer then
+            fallbackTimer = wait(2, fallbackCheck)
+            DebugPrint(LogLevel.Debug, "Fallback timer set")
+        end]]
+
 
     elseif event == "ITEM_COUNT_CHANGED" then
         local itemNumber = tostring(...)
-        -- DebugPrint("ITEM_COUNT_CHANGED for item number: " .. itemNumber)
-        -- DebugPrint("Type of itemNumber: " .. type(itemNumber))
-        -- DebugPrint("Pending item data: " .. tostring(pendingItemData[itemNumber]))
-        -- DebugPrint("Current pendingItemData contents:")
+        DebugPrint(LogLevel.Info, "ITEM_COUNT_CHANGED for item number: " .. itemNumber)
+        -- DebugPrint(LogLevel.Debug, "Type of itemNumber: " .. type(itemNumber))
+        -- DebugPrint(LogLevel.Debug, "Pending item data: " .. tostring(pendingItemData[itemNumber]))
+        -- DebugPrint(LogLevel.Debug, "Current pendingItemData contents:")
         -- printTable(pendingItemData)
         --[[for k, v in pairs(pendingItemData) do
-            DebugPrint("Key: " .. k .. ", Type: " .. type(k))
+            DebugPrint(LogLevel.Debug, "Key: " .. k .. ", Type: " .. type(k))
         end]]
         if pendingItemData[itemNumber] then
-            DebugPrint("Handled ITEM_COUNT_CHANGED for item number: " .. itemNumber)
+            DebugPrint(LogLevel.Info, "Handled ITEM_COUNT_CHANGED for item number: [ " .. itemNumber .. " ]")
             local WowApiItemCountBag = GetItemCount(itemNumber) or 0
-            DebugPrint("WOW_API: ICC Items in Bags: " .. WowApiItemCountBag)
-            DebugPrint("Original Message: " .. (pendingItemData[itemNumber].itemMessage or ""))
-            DebugPrint("Item Link: " .. (pendingItemData[itemNumber].itemLink or ""))
-            DebugPrint("Item Count: " .. (pendingItemData[itemNumber].itemCount or 1))
-            DebugPrint("Num Bags: " .. (pendingItemData[itemNumber].numBags or 0))
-            DebugPrint("Num Player: " .. (pendingItemData[itemNumber].numPlayer or 0))
-            DebugPrint("Num Alts: " .. (pendingItemData[itemNumber].numAlts or 0))
-            DebugPrint("Num Auctions: " .. (pendingItemData[itemNumber].numAuctions or 0))
-            DebugPrint("Num Alt Auctions: " .. (pendingItemData[itemNumber].numAltAuctions or 0))
-            DebugPrint("Mail: " .. (pendingItemData[itemNumber].getMail or 0))
-            DebugPrint("Bank: " .. (pendingItemData[itemNumber].getBank or 0))
-            DebugPrint("Guild Bank: " .. (pendingItemData[itemNumber].getGuildBank or 0))
-            DebugPrint("War Bank: " .. (pendingItemData[itemNumber].getWarBankTotal or 0))
+            DebugPrint(LogLevel.Debug, "WOW_API: ICC Items in Bags: " .. WowApiItemCountBag)
+            DebugPrint(LogLevel.Debug, "Original Message: " .. (pendingItemData[itemNumber].itemMessage or ""))
+            DebugPrint(LogLevel.Debug, "Item Link: " .. (pendingItemData[itemNumber].itemLink or ""))
+            DebugPrint(LogLevel.Debug, "Item Count: " .. (pendingItemData[itemNumber].itemCount or 1))
+            DebugPrint(LogLevel.Debug, "Num Bags: " .. (pendingItemData[itemNumber].numBags or 0))
+            DebugPrint(LogLevel.Debug, "Num Player: " .. (pendingItemData[itemNumber].numPlayer or 0))
+            DebugPrint(LogLevel.Debug, "Num Alts: " .. (pendingItemData[itemNumber].numAlts or 0))
+            DebugPrint(LogLevel.Debug, "Num Auctions: " .. (pendingItemData[itemNumber].numAuctions or 0))
+            DebugPrint(LogLevel.Debug, "Num Alt Auctions: " .. (pendingItemData[itemNumber].numAltAuctions or 0))
+            DebugPrint(LogLevel.Debug, "Mail: " .. (pendingItemData[itemNumber].getMail or 0))
+            DebugPrint(LogLevel.Debug, "Bank: " .. (pendingItemData[itemNumber].getBank or 0))
+            DebugPrint(LogLevel.Debug, "Guild Bank: " .. (pendingItemData[itemNumber].getGuildBank or 0))
+            DebugPrint(LogLevel.Debug, "War Bank: " .. (pendingItemData[itemNumber].getWarBankTotal or 0))
 
 			-- Player Total: On Player, On Alts, In Warbank
 			local getPlayerTotal = (pendingItemData[itemNumber].numPlayer or 0) + (pendingItemData[itemNumber].numAlts or 0) + (pendingItemData[itemNumber].getWarBankTotal or 0)
-			DebugPrint("Player Total: " .. getPlayerTotal)
+			DebugPrint(LogLevel.Debug, "Player Total: " .. getPlayerTotal)
 			local itemDifference = WowApiItemCountBag - (pendingItemData[itemNumber].numBags or 0)
-			DebugPrint("Item Difference: " .. itemDifference)
+			DebugPrint(LogLevel.Debug, "Item Difference: " .. itemDifference)
 			if itemDifference == (pendingItemData[itemNumber].itemCount or 0) then
 				getPlayerTotal = getPlayerTotal + pendingItemData[itemNumber].itemCount
-				DebugPrint("New Player Total: " .. getPlayerTotal)
-				DebugPrint("Items in Bags: " .. WowApiItemCountBag)
+				DebugPrint(LogLevel.Debug, "New Player Total: " .. getPlayerTotal)
+				DebugPrint(LogLevel.Debug, "Items in Bags: " .. WowApiItemCountBag)
 			end
 
 			local itemString = TSM_API.ToItemString((pendingItemData[itemNumber].itemLink or ""))
@@ -218,7 +272,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
             -- Remove the item from the queue
             for i, num in ipairs(pendingItemsQueue) do
                 if num == itemNumber then
-					DebugPrint("Removed Item From pendingItemsQueue: " .. num)
+					DebugPrint(LogLevel.Debug, "Removed Item From pendingItemsQueue: " .. num)
                     table.remove(pendingItemsQueue, i)
                     break
                 end
@@ -228,10 +282,10 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if #pendingItemsQueue == 0 and fallbackTimer then
                 fallbackTimer:Cancel()
                 fallbackTimer = nil
-                DebugPrint("Fallback timer canceled")
+                DebugPrint(LogLevel.Debug, "Fallback timer canceled")
             end
         else
-            DebugPrint("Item number not found in pendingItemData")
+            DebugPrint(LogLevel.Debug, "Item number: " .. itemNumber .. " not found in pendingItemData")
         end
     end
 end)
