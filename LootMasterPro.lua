@@ -1,3 +1,5 @@
+
+
 SLASH_AllTheThingsDebugOff1 = "/attdebugoff";
 SlashCmdList.AllTheThingsDebugOff = function(cmd)
 	AllTheThings.print("Force Debug Mode Off");
@@ -96,50 +98,53 @@ local function wait(delay, func, ...)
     return C_Timer.After(delay, function() func(unpack(args)) end)
 end
 
+local function displayLootMessage(itemNumber)
+	local WowApiItemCountBag = GetItemCount(itemNumber) or 0
+	DebugPrint(LogLevel.Debug, "WOW_API: No-ICC Items in Bags: " .. WowApiItemCountBag)
+	DebugPrint(LogLevel.Debug, "Original Message: " .. (pendingItemData[itemNumber].itemMessage or ""))
+	DebugPrint(LogLevel.Debug, "Item Link: " .. (pendingItemData[itemNumber].itemLink or ""))
+	DebugPrint(LogLevel.Debug, "Item Count: " .. (pendingItemData[itemNumber].itemCount or 1))
+	DebugPrint(LogLevel.Debug, "Num Bags: " .. (pendingItemData[itemNumber].numBags or 0))
+	DebugPrint(LogLevel.Debug, "Num Player: " .. (pendingItemData[itemNumber].numPlayer or 0))
+	DebugPrint(LogLevel.Debug, "Num Alts: " .. (pendingItemData[itemNumber].numAlts or 0))
+	DebugPrint(LogLevel.Debug, "Num Auctions: " .. (pendingItemData[itemNumber].numAuctions or 0))
+	DebugPrint(LogLevel.Debug, "Num Alt Auctions: " .. (pendingItemData[itemNumber].numAltAuctions or 0))
+	DebugPrint(LogLevel.Debug, "Mail: " .. (pendingItemData[itemNumber].getMail or 0))
+	DebugPrint(LogLevel.Debug, "Bank: " .. (pendingItemData[itemNumber].getBank or 0))
+	DebugPrint(LogLevel.Debug, "Guild Bank: " .. (pendingItemData[itemNumber].getGuildBank or 0))
+	DebugPrint(LogLevel.Debug, "War Bank: " .. (pendingItemData[itemNumber].getWarBankTotal or 0))
+
+	-- Player Total: On Player, On Alts, In Warbank
+	local getPlayerTotal = (pendingItemData[itemNumber].numPlayer or 0) + (pendingItemData[itemNumber].numAlts or 0) + (pendingItemData[itemNumber].getWarBankTotal or 0)
+	DebugPrint(LogLevel.Debug, "Player Total: " .. getPlayerTotal)
+	local itemDifference = WowApiItemCountBag - (pendingItemData[itemNumber].numBags or 0)
+	DebugPrint(LogLevel.Debug, "Item Difference: " .. itemDifference)
+	if itemDifference == (pendingItemData[itemNumber].itemCount or 0) then
+		getPlayerTotal = getPlayerTotal + pendingItemData[itemNumber].itemCount
+		DebugPrint(LogLevel.Debug, "New Player Total: " .. getPlayerTotal)
+		DebugPrint(LogLevel.Debug, "Items in Bags: " .. WowApiItemCountBag)
+	end
+
+	local itemString = TSM_API.ToItemString((pendingItemData[itemNumber].itemLink or ""))
+
+	local intPricedbMarketValue = (pendingItemData[itemNumber].itemCount or 1) * (TSM_API.GetCustomPriceValue("dbMarket", itemString) or 0)
+	local strPricedbMarketString = TSM_API.FormatMoneyString(intPricedbMarketValue)
+	local intPriceVendorSellValue = (pendingItemData[itemNumber].itemCount or 1) * (TSM_API.GetCustomPriceValue("VendorSell", itemString) or 0)
+	local strPriceVendorSellValue = TSM_API.FormatMoneyString(intPriceVendorSellValue)
+		
+	if WowApiItemCountBag == 0 then
+		DEFAULT_CHAT_FRAME:AddMessage("|cff009900" .. (pendingItemData[itemNumber].itemMessage or ""))
+	else
+		DEFAULT_CHAT_FRAME:AddMessage("|cff009900" .. (pendingItemData[itemNumber].itemMessage or "") .. "|cffffffff [Tot: " .. getPlayerTotal .. ", Bag: " .. WowApiItemCountBag ..", Alt: " .. (pendingItemData[itemNumber].numAlts or 0) .. ", AH: " .. (pendingItemData[itemNumber].numAuctions or 0) + (pendingItemData[itemNumber].numAltAuctions or 0) .. ", WB: " .. (pendingItemData[itemNumber].getWarBankTotal or 0) .. "] [AH: " .. strPricedbMarketString .. " V: " .. strPriceVendorSellValue .. "]")
+	end
+end
+
 local function fallbackCheck()
     if #pendingItemsQueue > 0 then
         local itemNumber = table.remove(pendingItemsQueue, 1)
         DebugPrint(LogLevel.Info, "*** Fallback ***")
 
-		local WowApiItemCountBag = GetItemCount(itemNumber) or 0
-		DebugPrint(LogLevel.Debug, "WOW_API: No-ICC Items in Bags: " .. WowApiItemCountBag)
-		DebugPrint(LogLevel.Debug, "Original Message: " .. (pendingItemData[itemNumber].itemMessage or ""))
-		DebugPrint(LogLevel.Debug, "Item Link: " .. (pendingItemData[itemNumber].itemLink or ""))
-		DebugPrint(LogLevel.Debug, "Item Count: " .. (pendingItemData[itemNumber].itemCount or 1))
-		DebugPrint(LogLevel.Debug, "Num Bags: " .. (pendingItemData[itemNumber].numBags or 0))
-		DebugPrint(LogLevel.Debug, "Num Player: " .. (pendingItemData[itemNumber].numPlayer or 0))
-		DebugPrint(LogLevel.Debug, "Num Alts: " .. (pendingItemData[itemNumber].numAlts or 0))
-		DebugPrint(LogLevel.Debug, "Num Auctions: " .. (pendingItemData[itemNumber].numAuctions or 0))
-		DebugPrint(LogLevel.Debug, "Num Alt Auctions: " .. (pendingItemData[itemNumber].numAltAuctions or 0))
-		DebugPrint(LogLevel.Debug, "Mail: " .. (pendingItemData[itemNumber].getMail or 0))
-		DebugPrint(LogLevel.Debug, "Bank: " .. (pendingItemData[itemNumber].getBank or 0))
-		DebugPrint(LogLevel.Debug, "Guild Bank: " .. (pendingItemData[itemNumber].getGuildBank or 0))
-		DebugPrint(LogLevel.Debug, "War Bank: " .. (pendingItemData[itemNumber].getWarBankTotal or 0))
-
-		-- Player Total: On Player, On Alts, In Warbank
-		local getPlayerTotal = (pendingItemData[itemNumber].numPlayer or 0) + (pendingItemData[itemNumber].numAlts or 0) + (pendingItemData[itemNumber].getWarBankTotal or 0)
-		DebugPrint(LogLevel.Debug, "Player Total: " .. getPlayerTotal)
-		local itemDifference = WowApiItemCountBag - (pendingItemData[itemNumber].numBags or 0)
-		DebugPrint(LogLevel.Debug, "Item Difference: " .. itemDifference)
-		if itemDifference == (pendingItemData[itemNumber].itemCount or 0) then
-			getPlayerTotal = getPlayerTotal + pendingItemData[itemNumber].itemCount
-			DebugPrint(LogLevel.Debug, "New Player Total: " .. getPlayerTotal)
-			DebugPrint(LogLevel.Debug, "Items in Bags: " .. WowApiItemCountBag)
-		end
-
-		local itemString = TSM_API.ToItemString((pendingItemData[itemNumber].itemLink or ""))
-
-		local intPricedbMarketValue = (pendingItemData[itemNumber].itemCount or 1) * (TSM_API.GetCustomPriceValue("dbMarket", itemString) or 0)
-		local strPricedbMarketString = TSM_API.FormatMoneyString(intPricedbMarketValue)
-		local intPriceVendorSellValue = (pendingItemData[itemNumber].itemCount or 1) * (TSM_API.GetCustomPriceValue("VendorSell", itemString) or 0)
-		local strPriceVendorSellValue = TSM_API.FormatMoneyString(intPriceVendorSellValue)
-		
-		if WowApiItemCountBag == 0 then
-			DEFAULT_CHAT_FRAME:AddMessage("|cff009900" .. (pendingItemData[itemNumber].itemMessage or ""))
-		else
-			DEFAULT_CHAT_FRAME:AddMessage("|cff009900" .. (pendingItemData[itemNumber].itemMessage or "") .. "|cffffffff [Tot: " .. getPlayerTotal .. ", Bag: " .. WowApiItemCountBag ..", Alt: " .. (pendingItemData[itemNumber].numAlts or 0) .. ", AH: " .. (pendingItemData[itemNumber].numAuctions or 0) + (pendingItemData[itemNumber].numAltAuctions or 0) .. ", WB: " .. (pendingItemData[itemNumber].getWarBankTotal or 0) .. "] [AH: " .. strPricedbMarketString .. " V: " .. strPriceVendorSellValue .. "]")
-		end
-		
+        displayLootMessage(itemNumber)
 		pendingItemData[itemNumber] = nil
 
     end
@@ -213,44 +218,9 @@ frame:SetScript("OnEvent", function(self, event, ...)
             DebugPrint(LogLevel.Trace, "Key: " .. k .. ", Type: " .. type(k))
         end
         if pendingItemData[itemNumber] then
-            DebugPrint(LogLevel.Info, "Handled ITEM_COUNT_CHANGED for item number: [ " .. itemNumber .. " ]")
-            local WowApiItemCountBag = GetItemCount(itemNumber) or 0
-            DebugPrint(LogLevel.Debug, "WOW_API: ICC Items in Bags: " .. WowApiItemCountBag)
-            DebugPrint(LogLevel.Debug, "Original Message: " .. (pendingItemData[itemNumber].itemMessage or ""))
-            DebugPrint(LogLevel.Debug, "Item Link: " .. (pendingItemData[itemNumber].itemLink or ""))
-            DebugPrint(LogLevel.Debug, "Item Count: " .. (pendingItemData[itemNumber].itemCount or 1))
-            DebugPrint(LogLevel.Debug, "Num Bags: " .. (pendingItemData[itemNumber].numBags or 0))
-            DebugPrint(LogLevel.Debug, "Num Player: " .. (pendingItemData[itemNumber].numPlayer or 0))
-            DebugPrint(LogLevel.Debug, "Num Alts: " .. (pendingItemData[itemNumber].numAlts or 0))
-            DebugPrint(LogLevel.Debug, "Num Auctions: " .. (pendingItemData[itemNumber].numAuctions or 0))
-            DebugPrint(LogLevel.Debug, "Num Alt Auctions: " .. (pendingItemData[itemNumber].numAltAuctions or 0))
-            DebugPrint(LogLevel.Debug, "Mail: " .. (pendingItemData[itemNumber].getMail or 0))
-            DebugPrint(LogLevel.Debug, "Bank: " .. (pendingItemData[itemNumber].getBank or 0))
-            DebugPrint(LogLevel.Debug, "Guild Bank: " .. (pendingItemData[itemNumber].getGuildBank or 0))
-            DebugPrint(LogLevel.Debug, "War Bank: " .. (pendingItemData[itemNumber].getWarBankTotal or 0))
-
-			-- Player Total: On Player, On Alts, In Warbank
-			local getPlayerTotal = (pendingItemData[itemNumber].numPlayer or 0) + (pendingItemData[itemNumber].numAlts or 0) + (pendingItemData[itemNumber].getWarBankTotal or 0)
-			DebugPrint(LogLevel.Debug, "Player Total: " .. getPlayerTotal)
-			local itemDifference = WowApiItemCountBag - (pendingItemData[itemNumber].numBags or 0)
-			DebugPrint(LogLevel.Debug, "Item Difference: " .. itemDifference)
-			if itemDifference == (pendingItemData[itemNumber].itemCount or 0) then
-				getPlayerTotal = getPlayerTotal + pendingItemData[itemNumber].itemCount
-				DebugPrint(LogLevel.Debug, "New Player Total: " .. getPlayerTotal)
-				DebugPrint(LogLevel.Debug, "Items in Bags: " .. WowApiItemCountBag)
-			end
-
-			local itemString = TSM_API.ToItemString((pendingItemData[itemNumber].itemLink or ""))
-
-			local intPricedbMarketValue = (pendingItemData[itemNumber].itemCount or 1) * (TSM_API.GetCustomPriceValue("dbMarket", itemString) or 0)
-			local strPricedbMarketString = TSM_API.FormatMoneyString(intPricedbMarketValue)
-			local intPriceVendorSellValue = (pendingItemData[itemNumber].itemCount or 1) * (TSM_API.GetCustomPriceValue("VendorSell", itemString) or 0)
-			local strPriceVendorSellValue = TSM_API.FormatMoneyString(intPriceVendorSellValue)
-			
-			DEFAULT_CHAT_FRAME:AddMessage("|cff009900" .. (pendingItemData[itemNumber].itemMessage or "") .. "|cffffffff [Tot: " .. getPlayerTotal .. ", Bag: " .. WowApiItemCountBag ..", Alt: " .. (pendingItemData[itemNumber].numAlts or 0) .. ", AH: " .. (pendingItemData[itemNumber].numAuctions or 0) + (pendingItemData[itemNumber].numAltAuctions or 0) .. ", WB: " .. (pendingItemData[itemNumber].getWarBankTotal or 0) .. "] [AH: " .. strPricedbMarketString .. " V: " .. strPriceVendorSellValue .. "]")
-			
+            DebugPrint(LogLevel.Debug, "Handled ITEM_COUNT_CHANGED for item number: [ " .. itemNumber .. " ]")
+            displayLootMessage(itemNumber)
             pendingItemData[itemNumber] = nil
-
 
             -- Remove the item from the queue
             for i, num in ipairs(pendingItemsQueue) do
@@ -268,7 +238,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
                 DebugPrint(LogLevel.Debug, "Fallback timer canceled")
             end
         else
-            DebugPrint(LogLevel.Debug, "Item number: " .. itemNumber .. " not found in pendingItemData")
+            DebugPrint(LogLevel.Info, "Item number: " .. itemNumber .. " not found in pendingItemData")
         end
     end
 end)
