@@ -1,0 +1,33 @@
+name: Package Addon
+
+on:
+  push:
+    branches:
+      - main
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Create release directory
+        run: mkdir addon_release
+
+      - name: Copy .toc and .lua files
+        run: |
+          find . -name '*.toc' -exec cp --parents \{\} addon_release \;
+          find . -name '*.lua' -exec cp --parents \{\} addon_release \;
+
+      - name: Zip the files
+        run: zip -r addon_release.zip addon_release/*
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: addon-release
+          path: addon_release.zip
