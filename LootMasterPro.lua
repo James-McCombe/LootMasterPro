@@ -1,5 +1,6 @@
 
-
+-- *** External Slash Commands (Enhance other Addons) ***
+-- All The Things
 SLASH_AllTheThingsDebugOff1 = "/attdebugoff";
 SlashCmdList.AllTheThingsDebugOff = function(cmd)
 	AllTheThings.print("Force Debug Mode Off");
@@ -16,10 +17,9 @@ SlashCmdList.AllTheThingsDebugOn = function(cmd)
 	AllTheThings.Settings:SetDebugMode(true);
 end
 
-
 local frame = CreateFrame("Frame")
 
--- Functions
+-- *** Functions ***
 -- Function to filter out the original loot message
 local function FilterLootMessage(self, event, message)
     if string.find(message, "You receive ") then
@@ -42,6 +42,7 @@ local function GetDecWaitDelay()
     return decWaitDelay
 end
 
+-- Debug Logging Levels
 local LogLevel = {
 	Trace = 0,
     Debug = 1,
@@ -65,7 +66,6 @@ SlashCmdList["LMPDEBUGLEVEL"] = function(msg)
     end
 end
 
--- Debug Print
 local function DebugPrint(level, message)
     if level >= currentLogLevel then
         local levelName = ""
@@ -84,6 +84,90 @@ local function DebugPrint(level, message)
         print("[" .. timestamp .. "] [" .. levelName .. "]: " .. message)
     end
 end
+
+SLASH_ITEMINFO1 = "/getiteminfo"
+
+-- Handler function for the slash command
+function SlashCmdList.ITEMINFO(msg)
+
+    local itemID
+
+    if msg:match("item:(%d+):") then
+        local match = msg:match("item:(%d+):")
+        itemID = tonumber(match)
+    else
+        itemID = tonumber(msg)
+    end
+
+    -- Retrieve item info
+    local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture, itemSellPrice, itemClassID, itemSubClassID, itemBindType, itemExpacID, itemSetID, itemIsCraftingReagent = GetItemInfo(itemID)
+    -- Retrieve item counts
+    local itemsInBag = GetItemCount(itemID, false, false, false)
+    local itemsInBank = GetItemCount(itemID, true, false, false)
+    local itemsInReagentBank = GetItemCount(itemID, true, false, true)
+
+    if itemsInReagentBank >= itemsInBank then
+	    itemsInReagentBank = itemsInReagentBank - itemsInBank
+	end
+	
+	if itemsInBank >= itemsInBag then
+        itemsInBank = itemsInBank - itemsInBag
+	end
+
+    -- Check if the item was found
+    if itemName then
+        -- Display the item info in the chat
+        print("Item Name: " .. (itemName or ""))
+		print("Item ID: " .. (itemID or ""))
+        print("Item Link: " .. (itemLink or ""))
+        print("Item Rarity: " .. (_G["ITEM_QUALITY" .. itemRarity .. "_DESC"] or ""))
+        print("Item Level: " .. (itemLevel or ""))
+        print("Item Type: " .. (itemType or ""))
+        print("Item SubType: " .. (itemSubType or ""))
+        print("Item Equip Location: " .. (_G[itemEquipLoc] or ""))
+        print("Item Stack Count: " .. (itemStackCount or ""))
+        print("Item Sell Price: " .. (GetCoinTextureString(itemSellPrice) or ""))
+        print("Item Class ID: " .. (itemClassID or ""))
+        print("Item SubClass ID: " .. (itemSubClassID or ""))
+        print("Item BindType: " .. (itemBindType or ""))
+        print("Item Expac ID: " .. (itemExpacID or ""))
+        print("Item Set ID: " .. (itemSetID or ""))
+        print("Item IsCraftingReagent: " .. tostring(itemIsCraftingReagent))
+        print("Item Count in Bag: " .. itemsInBag)
+        print("Item Count in Bank: " .. itemsInBank)
+        print("Item Count in Reagent Bank: " .. itemsInReagentBank)
+    else
+        -- If the item was not found, show an error message
+        print("Item not found: " .. msg)
+    end
+end
+
+-- Define the variable to track mailbox state
+local isMailboxOpen = false
+
+-- Create a frame to register events
+local mailboxFrame = CreateFrame("Frame")
+
+-- Event handler function
+local function MailboxEventHandler(self, event, ...)
+    if event == "MAIL_SHOW" or event == "MAIL_INBOX_UPDATE" then
+        if isMailboxOpen == false then
+    		isMailboxOpen = true
+            DebugPrint(LogLevel.Debug, "Mailbox is open")
+		end
+    elseif event == "SECURE_TRANSFER_CANCEL" then
+        isMailboxOpen = false
+        DebugPrint(LogLevel.Debug, "Mailbox is closed")
+    end
+end
+
+-- Register the events
+mailboxFrame:RegisterEvent("MAIL_SHOW")
+mailboxFrame:RegisterEvent("MAIL_INBOX_UPDATE")
+mailboxFrame:RegisterEvent("SECURE_TRANSFER_CANCEL")
+
+-- Set the script for the frame
+mailboxFrame:SetScript("OnEvent", MailboxEventHandler)
 
 frame:RegisterEvent("CHAT_MSG_LOOT")
 frame:RegisterEvent("ITEM_COUNT_CHANGED")
@@ -113,6 +197,14 @@ local function displayLootMessage(itemNumber)
 	DebugPrint(LogLevel.Debug, "Bank: " .. (pendingItemData[itemNumber].getBank or 0))
 	DebugPrint(LogLevel.Debug, "Guild Bank: " .. (pendingItemData[itemNumber].getGuildBank or 0))
 	DebugPrint(LogLevel.Debug, "War Bank: " .. (pendingItemData[itemNumber].getWarBankTotal or 0))
+
+    -- Fix item Counts if Mailbox is Open.
+    if isMailboxOpen == true then
+        if pendingItemData[itemNumber].getMail >= pendingItemData[itemNumber].itemCount then
+            pendingItemData[itemNumber].getMail = pendingItemData[itemNumber].getMail - pendingItemData[itemNumber].itemCount
+            pendingItemData[itemNumber].numPlayer = pendingItemData[itemNumber].numPlayer - pendingItemData[itemNumber].itemCount
+		end
+	end 
 
 	-- Player Total: On Player, On Alts, In Warbank
 	local getPlayerTotal = (pendingItemData[itemNumber].numPlayer or 0) + (pendingItemData[itemNumber].numAlts or 0) + (pendingItemData[itemNumber].getWarBankTotal or 0)
@@ -174,7 +266,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
         local itemLink = message:match("|Hitem:.-|h.-|h")
         local itemCount = tonumber(message:match("x(%d+)")) or 1
         local itemString = TSM_API.ToItemString(itemLink)
-        local itemNumber = itemString:gsub("i:", "")
+        local itemNumber = itemString:match("i:(%d+)")
         local numBags = TSM_API.GetBagQuantity(itemString) or 0
         local numPlayer, numAlts, numAuctions, numAltAuctions = TSM_API.GetPlayerTotals(itemString)
         local getMail = TSM_API.GetMailQuantity(itemString) or 0
@@ -199,12 +291,14 @@ frame:SetScript("OnEvent", function(self, event, ...)
         }
         DebugPrint(LogLevel.Debug, "Added item to queue: " .. itemNumber)
         if #pendingItemsQueue > 0 then
-			if fallbackTimer then
-				DebugPrint(LogLevel.Debug, "Reset Fallback Timer")
-			else
-				DebugPrint(LogLevel.Debug, "Fallback timer set")
-			end
+            if fallbackTimer then
+                DebugPrint(LogLevel.Debug, "Reset Fallback Timer")
+            else
+                DebugPrint(LogLevel.Debug, "Fallback timer set")
+            end
             fallbackTimer = wait(2, fallbackCheck)
+        else
+            DebugPrint(LogLevel.Debug, "No pending items")
         end
 
     elseif event == "ITEM_COUNT_CHANGED" then
