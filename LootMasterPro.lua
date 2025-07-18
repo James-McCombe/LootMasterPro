@@ -152,10 +152,10 @@ local mailboxFrame = CreateFrame("Frame")
 local function MailboxEventHandler(self, event, ...)
     if event == "MAIL_SHOW" or event == "MAIL_INBOX_UPDATE" then
         if isMailboxOpen == false then
-    		isMailboxOpen = true
+                isMailboxOpen = true
             DebugPrint(LogLevel.Debug, "Mailbox is open")
-		end
-    elseif event == "SECURE_TRANSFER_CANCEL" then
+                end
+    elseif event == "MAIL_CLOSED" or event == "SECURE_TRANSFER_CANCEL" then
         isMailboxOpen = false
         DebugPrint(LogLevel.Debug, "Mailbox is closed")
     end
@@ -164,6 +164,7 @@ end
 -- Register the events
 mailboxFrame:RegisterEvent("MAIL_SHOW")
 mailboxFrame:RegisterEvent("MAIL_INBOX_UPDATE")
+mailboxFrame:RegisterEvent("MAIL_CLOSED")
 mailboxFrame:RegisterEvent("SECURE_TRANSFER_CANCEL")
 
 -- Set the script for the frame
